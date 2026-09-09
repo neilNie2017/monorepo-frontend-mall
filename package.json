@@ -1,0 +1,25 @@
+{
+  "name": "monorepo-frontend-demo1",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev:vue": "pnpm --filter vue run dev",
+    "dev:react": "pnpm --filter appReact run dev",
+    "build:vue": "pnpm --filter vue run build",
+    "build:react": "pnpm --filter appReact run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.19.0",
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^9.3.1",
+    "components": "link:C:/Users/nick/AppData/Local/pnpm/global/5/node_modules/@mfd/components",
+    "lodash": "^4.17.21",
+    "react-hook-form": "^7.84.0"
+  }
+}

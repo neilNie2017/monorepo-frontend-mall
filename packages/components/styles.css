@@ -1,0 +1,13 @@
+/* ============================================================
+   @mfd/components 共享组件补充样式
+   主体样式由 MUI(emotion) 提供,此处仅保留少量自定义样式
+   ============================================================ */
+
+/* ---------- ProductCard / 商品图区 ---------- */
+.mfd-product-card__thumb {
+  position: relative;
+}
+.mfd-product-card__emoji {
+  font-size: 56px;
+  line-height: 1;
+}
