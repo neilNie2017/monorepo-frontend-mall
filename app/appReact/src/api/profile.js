@@ -1,9 +1,13 @@
 /**
  * 个人资料接口(baseURL=/api,实际请求 /api/*)
  *  - 更新个人资料:PUT /api/user { userId, username, avatar, email, phone, description }
+ *  - 查询当前用户(含余额):GET /api/user  -> { ..., balance }
  *  - 头像上传见 ./upload.js(POST /api/upload)
  */
 import { alovaInstance } from "./index";
+
+/** 查询当前用户信息,响应中包含余额字段 balance */
+export const getUserProfile = () => alovaInstance.Get("/user");
 
 /** 更新个人资料 */
 export const updateUserProfile = (payload) => alovaInstance.Put("/user", payload);

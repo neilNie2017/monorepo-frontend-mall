@@ -1,10 +1,12 @@
 /**
- * 钱包面板:余额 + 充值 + 优惠券(演示版)
- *  - 余额持久化在 localStorage(`mall_wallet_balance`),充值即累加;
+ * 钱包面板:余额 + 充值 + 优惠券
+ *  - 余额完全走后端:挂载时 GET /user 拉一次、充值回调成功后再次拉取刷新,不做本地缓存。
+ *    响应里取 balance 字段;若后端字段名不同,在 fetchBalance 处改一行即可。
  *  - 优惠券为示例数据(mock),含未使用/已使用/已过期筛选。
- * 后端钱包/充值/券接口就绪后,把充值 & 余额读取替换为真实 API 即可。
+ *  - 充值走两步:POST /recharge 创建订单拿到 orderNo → POST /recharge/success/callback 模拟支付回调。
+ *    生产环境应在真实支付完成后再触发回调,此处为后端联调而直接调用。
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
@@ -18,9 +20,12 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
-
-const BALANCE_KEY = "mall_wallet_balance";
-const readBalance = () => Number(localStorage.getItem(BALANCE_KEY)) || 0;
+import CircularProgress from "@mui/material/CircularProgress";
+import {
+  createRechargeOrder,
+  rechargeSuccessCallback,
+} from "../api/wallet";
+import { getUserProfile } from "../api/profile";
 
 const RECHARGE_AMOUNTS = [50, 100, 200, 500];
 
@@ -37,22 +42,36 @@ const STATUS_TEXT = { 1: "未使用", 2: "已使用", 3: "已过期" };
 const STATUS_COLOR = { 1: "#059669", 2: "#94A3B8", 3: "#E11D48" };
 
 export default function WalletPanel() {
-  const [balance, setBalance] = useState(readBalance);
+  const [balance, setBalance] = useState(null);
+  const [balanceLoading, setBalanceLoading] = useState(true);
   const [rechargeOpen, setRechargeOpen] = useState(false);
   const [amount, setAmount] = useState(100);
   const [custom, setCustom] = useState("");
+  const [recharging, setRecharging] = useState(false);
   const [couponTab, setCouponTab] = useState(1);
   const [toast, setToast] = useState({ open: false, severity: "success", text: "" });
 
   const show = (severity, text) => setToast({ open: true, severity, text });
-  const persist = (next) => {
-    setBalance(next);
+
+  /* 从 /user 拉余额。响应中 balance 字段(数字/数字字符串都行),后端字段名变了改这一行 */
+  const fetchBalance = async () => {
+    setBalanceLoading(true);
     try {
-      localStorage.setItem(BALANCE_KEY, String(next));
-    } catch {
-      /* ignore */
+      const data = await getUserProfile().send();
+      const raw = data?.balance;
+      const n = typeof raw === "string" ? Number(raw) : raw;
+      setBalance(Number.isFinite(n) ? n : 0);
+    } catch (err) {
+      setBalance(0);
+      show("error", err?.message || "余额获取失败");
+    } finally {
+      setBalanceLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchBalance();
+  }, []);
 
   const openRecharge = () => {
     setAmount(100);
@@ -60,15 +79,33 @@ export default function WalletPanel() {
     setRechargeOpen(true);
   };
 
-  const doRecharge = () => {
+  const closeRecharge = () => {
+    if (recharging) return;
+    setRechargeOpen(false);
+  };
+
+  /* 充值流程:1) 创建订单  2) 模拟支付成功回调  3) 回调成功再次 GET /user 刷新余额 */
+  const doRecharge = async () => {
     const val = custom ? Number(custom) : Number(amount);
     if (!Number.isFinite(val) || val <= 0) {
       show("error", "请输入正确的充值金额");
       return;
     }
-    persist(balance + val);
-    setRechargeOpen(false);
-    show("success", `充值成功,到账 ¥${val.toFixed(2)}`);
+    setRecharging(true);
+    try {
+      const orderNo = await createRechargeOrder(val).send();
+      if (!orderNo) {
+        throw new Error("未返回订单号");
+      }
+      await rechargeSuccessCallback(orderNo).send();
+      setRechargeOpen(false);
+      await fetchBalance();
+      show("success", `充值成功,到账 ¥${val.toFixed(2)}`);
+    } catch (err) {
+      show("error", err?.message || "充值失败,请稍后重试");
+    } finally {
+      setRecharging(false);
+    }
   };
 
   const showList = COUPONS.filter((c) => c.status === couponTab);
@@ -102,7 +139,11 @@ export default function WalletPanel() {
           我的余额(元)
         </Typography>
         <Typography sx={{ fontSize: 40, fontWeight: 800, color: "#FCD34D", mt: 0.5 }}>
-          ¥{balance.toFixed(2)}
+          {balanceLoading || balance == null ? (
+            <CircularProgress size={28} sx={{ color: "#FCD34D", verticalAlign: "middle" }} />
+          ) : (
+            `¥${balance.toFixed(2)}`
+          )}
         </Typography>
         <Box sx={{ display: "flex", gap: 1.5, mt: 2.5, flexWrap: "wrap" }}>
           <Button
@@ -237,13 +278,14 @@ export default function WalletPanel() {
       </Paper>
 
       {/* 充值弹窗 */}
-      <Dialog open={rechargeOpen} onClose={() => setRechargeOpen(false)} fullWidth maxWidth="xs">
+      <Dialog open={rechargeOpen} onClose={closeRecharge} fullWidth maxWidth="xs">
         <DialogTitle sx={{ fontWeight: 700 }}>充值</DialogTitle>
         <DialogContent>
           <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1, pt: 1 }}>
             {RECHARGE_AMOUNTS.map((a) => (
               <Button
                 key={a}
+                disabled={recharging}
                 variant={amount === a && !custom ? "contained" : "outlined"}
                 onClick={() => {
                   setAmount(a);
@@ -269,6 +311,7 @@ export default function WalletPanel() {
             type="number"
             sx={{ mt: 2 }}
             value={custom}
+            disabled={recharging}
             onChange={(e) => {
               setCustom(e.target.value);
               if (e.target.value) setAmount(0);
@@ -276,19 +319,24 @@ export default function WalletPanel() {
             inputProps={{ min: 0.01, step: 0.01 }}
           />
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-            演示环境:充值立即到账,不产生真实扣款。
+            演示环境:已对接后端,充值即时到账,不会产生真实扣款。
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setRechargeOpen(false)} sx={{ textTransform: "none" }}>
+          <Button
+            onClick={closeRecharge}
+            disabled={recharging}
+            sx={{ textTransform: "none" }}
+          >
             取消
           </Button>
           <Button
             variant="contained"
             onClick={doRecharge}
+            disabled={recharging}
             sx={{ textTransform: "none", borderRadius: "8px", bgcolor: "#4C1D95", "&:hover": { bgcolor: "#312E81" }, px: 3 }}
           >
-            确认充值
+            {recharging ? "处理中…" : "确认充值"}
           </Button>
         </DialogActions>
       </Dialog>

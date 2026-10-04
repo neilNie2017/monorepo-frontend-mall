@@ -6,8 +6,10 @@
   "scripts": {
     "dev:vue": "pnpm --filter vue run dev",
     "dev:react": "pnpm --filter appReact run dev",
+    "dev:admin": "pnpm --filter adminReact run dev",
     "build:vue": "pnpm --filter vue run build",
     "build:react": "pnpm --filter appReact run build",
+    "build:admin": "pnpm --filter adminReact run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

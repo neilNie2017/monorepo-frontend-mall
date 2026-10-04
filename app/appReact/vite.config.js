@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => ({
     // 开发环境代理到真实后端,避免跨域(后端统一 /api/* 前缀)
     proxy: {
       "/api": {
-        target: "http://10.50.138.80:8080",
+        target: "http://127.0.0.1:8080",
         changeOrigin: true,
         ws: true,
       },

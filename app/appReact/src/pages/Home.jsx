@@ -14,6 +14,7 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Snackbar from "@mui/material/Snackbar";
 import { Button } from "@components";
+import homeBanner from "../assets/banner-home.webp";
 import { getProducts } from "../api/products";
 import { getCategoryRootList, normalizeCategoryOptions } from "../api/categories";
 import { useCart } from "../context/CartContext";
@@ -215,54 +216,20 @@ export default function Home() {
     <Box>
       {/* 顶部大图 banner */}
       <Box
+        component="img"
+        src={homeBanner}
+        alt="首页活动 Banner"
+        loading="eager"
         sx={{
+          display: "block",
+          width: "100%",
           height: 240,
+          objectFit: "cover",
           borderRadius: "14px",
           mb: 3,
-          background:
-            "linear-gradient(135deg, #4C1D95 0%, #7C2D5E 50%, #BE185D 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "relative",
-          overflow: "hidden",
           boxShadow: "0 8px 32px rgba(76,29,149,.2)",
-          "&::before": {
-            content: '""',
-            position: "absolute",
-            top: -60,
-            right: -60,
-            width: 240,
-            height: 240,
-            background:
-              "radial-gradient(circle, rgba(245,158,11,.25) 0%, transparent 70%)",
-            borderRadius: "50%",
-          },
-          "&::after": {
-            content: '""',
-            position: "absolute",
-            bottom: -40,
-            left: "30%",
-            width: 180,
-            height: 180,
-            background:
-              "radial-gradient(circle, rgba(244,63,94,.2) 0%, transparent 70%)",
-            borderRadius: "50%",
-          },
         }}
-      >
-        <Typography
-          sx={{
-            color: "rgba(255,255,255,.7)",
-            fontSize: 18,
-            letterSpacing: 2,
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          🎁 Banner 占位 · 200 × 10 限时秒杀
-        </Typography>
-      </Box>
+      />
 
       {/* 分类图标(来自 /api/category/rootList) */}
       {!catLoading && catList.length === 0 ? null : (
