@@ -79,7 +79,7 @@ export default defineMock({
   },
 
   /* 商品列表 */
-  "[GET]/admin/product/page": ({ query }) => {
+  "[GET]/product/page": ({ query }) => {
     const keyword = ((query?.keyword || "") + "").trim().toLowerCase();
     const status = query?.status;
     let list = MOCK_PRODUCTS;
@@ -97,7 +97,7 @@ export default defineMock({
   },
 
   /* 商品状态变更(上下架) */
-  "[PUT]/admin/product/{id}/status": ({ params, data }) => {
+  "[PUT]/product/{id}/status": ({ params, data }) => {
     const { status } = parseBody(data);
     const product = MOCK_PRODUCTS.find((p) => String(p.id) === String(params.id));
     if (!product) return { code: 404, message: "商品不存在", data: null };
@@ -106,7 +106,7 @@ export default defineMock({
   },
 
   /* 删除商品 */
-  "[DELETE]/admin/product/{id}": ({ params }) => {
+  "[DELETE]/product/{id}": ({ params }) => {
     const idx = MOCK_PRODUCTS.findIndex((p) => String(p.id) === String(params.id));
     if (idx < 0) return { code: 404, message: "商品不存在", data: null };
     MOCK_PRODUCTS.splice(idx, 1);
@@ -114,7 +114,7 @@ export default defineMock({
   },
 
   /* 订单列表 */
-  "[GET]/admin/order/page": ({ query }) => {
+  "[GET]/order/page": ({ query }) => {
     const status = query?.status;
     let list = MOCK_ORDERS;
     if (status !== undefined && status !== "") {
@@ -128,7 +128,7 @@ export default defineMock({
   },
 
   /* 订单状态变更 */
-  "[PUT]/admin/order/{id}/status": ({ params, data }) => {
+  "[PUT]/order/{id}/status": ({ params, data }) => {
     const { status } = parseBody(data);
     const order = MOCK_ORDERS.find((o) => String(o.id) === String(params.id));
     if (!order) return { code: 404, message: "订单不存在", data: null };
@@ -137,7 +137,7 @@ export default defineMock({
   },
 
   /* 用户列表 */
-  "[GET]/admin/user/page": ({ query }) => {
+  "[GET]/user/page": ({ query }) => {
     const keyword = ((query?.keyword || "") + "").trim().toLowerCase();
     let list = MOCK_USERS;
     if (keyword) {
@@ -155,7 +155,7 @@ export default defineMock({
   },
 
   /* 用户状态变更(禁用/启用) */
-  "[PUT]/admin/user/{id}/status": ({ params, data }) => {
+  "[PUT]/user/{id}/status": ({ params, data }) => {
     const { status } = parseBody(data);
     const user = MOCK_USERS.find((u) => String(u.id) === String(params.id));
     if (!user) return { code: 404, message: "用户不存在", data: null };
@@ -164,7 +164,7 @@ export default defineMock({
   },
 
   /* 仪表盘统计 */
-  "[GET]/admin/dashboard/stats": () => {
+  "[GET]/dashboard/stats": () => {
     return {
       code: 0,
       message: "ok",

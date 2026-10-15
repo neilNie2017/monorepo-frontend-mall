@@ -1,19 +1,11 @@
 /**
- * 商品管理:搜索 + 状态筛选 + 上下架/删除操作
+ * 商品管理:基于 ProTable 通用组件
+ * columns 通过 hideInSearch / hideInTable / valueType 控制过滤与表格字段
  */
 import { useState } from "react";
 import { useRequest, useFetcher } from "alova/client";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import TablePagination from "@mui/material/TablePagination";
 import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -25,19 +17,18 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
-import { Input } from "@components";
+import ProTable from "../components/ProTable";
 import { getAdminProducts, updateProductStatus, deleteProduct } from "../api/products";
 
 export default function Products() {
-  const [keyword, setKeyword] = useState("");
-  const [status, setStatus] = useState("");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [params, setParams] = useState({ keyword: "", status: "" });
   const [toast, setToast] = useState({ open: false, text: "", severity: "success" });
   const [confirmId, setConfirmId] = useState(null);
 
   const { data, loading, send } = useRequest(
-    () => getAdminProducts({ current: page + 1, pageSize, keyword, status }),
+    () => getAdminProducts({ current: page + 1, pageSize, ...params }),
     { initialData: { records: [], total: 0 } }
   );
 
@@ -50,7 +41,7 @@ export default function Products() {
 
   const handleStatus = async (p) => {
     try {
-      await sendStatus(p.id, p.status === 1 ? 0 : 1);
+      await sendStatus(p.productId, p.status === 1 ? 0 : 1);
       setToast({ open: true, text: "状态已更新", severity: "success" });
       send();
     } catch (err) {
@@ -69,10 +60,108 @@ export default function Products() {
     }
   };
 
-  const handleSearch = () => {
+  const handleSearch = (values) => {
+    setParams(values);
     setPage(0);
     send();
   };
+
+  const columns = [
+    // 仅用于过滤区:商品名称 -> keyword
+    {
+      title: "商品名称",
+      dataIndex: "name",
+      searchKey: "keyword",
+      hideInTable: true,
+    },
+    {
+      title: "商品ID",
+      dataIndex: "productId",
+      hideInSearch: true,
+      width: 200,
+      render: (v) => (
+        <Box sx={{ fontFamily: "monospace", fontSize: 12 }}>{v}</Box>
+      ),
+    },
+    { title: "商品名称", dataIndex: "name", hideInSearch: true },
+    { title: "分类", dataIndex: "categoryId", hideInSearch: true },
+    {
+      title: "价格",
+      dataIndex: "price",
+      valueType: "number",
+      hideInSearch: true,
+      align: "right",
+      render: (v) => `¥${Number(v).toLocaleString()}`,
+    },
+    {
+      title: "库存",
+      dataIndex: "stock",
+      valueType: "number",
+      hideInSearch: true,
+      align: "right",
+    },
+    {
+      title: "秒杀",
+      dataIndex: "seckillStatus",
+      valueType: "select",
+      hideInSearch: true,
+      options: [
+        { label: "进行中", value: 1 },
+        { label: "未开启", value: 0 },
+      ],
+    },
+    {
+      title: "状态",
+      dataIndex: "status",
+      hideInSearch: true,
+      render: (v) => (
+        <Chip
+          size="small"
+          label={v === 1 ? "已上架" : "已下架"}
+          color={v === 1 ? "success" : "default"}
+        />
+      ),
+    },
+    // 仅用于过滤区:状态
+    {
+      title: "状态",
+      dataIndex: "status",
+      hideInTable: true,
+      valueType: "select",
+      options: [
+        { label: "已上架", value: 1 },
+        { label: "已下架", value: 0 },
+      ],
+    },
+    {
+      title: "操作",
+      dataIndex: "action",
+      hideInSearch: true,
+      align: "center",
+      render: (_, record) => (
+        <>
+          <Tooltip title={record.status === 1 ? "下架" : "上架"}>
+            <IconButton size="small" onClick={() => handleStatus(record)}>
+              {record.status === 1 ? (
+                <span style={{ fontSize: 16 }}>⏸️</span>
+              ) : (
+                <span style={{ fontSize: 16 }}>▶️</span>
+              )}
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="删除">
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => setConfirmId(record.productId)}
+            >
+              <span style={{ fontSize: 16 }}>🗑️</span>
+            </IconButton>
+          </Tooltip>
+        </>
+      ),
+    },
+  ];
 
   return (
     <Box>
@@ -80,133 +169,23 @@ export default function Products() {
         商品管理
       </Typography>
 
-      <Card sx={{ borderRadius: 2, boxShadow: "0 1px 3px rgba(15,23,42,.06)" }}>
-        <CardContent sx={{ p: 2.5 }}>
-          {/* 筛选栏 */}
-          <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <Box sx={{ flex: "1 1 240px" }}>
-              <Input
-                label="商品名称"
-                placeholder="输入商品名称搜索"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                margin="dense"
-              />
-            </Box>
-            <Box sx={{ width: 160 }}>
-              <Input
-                label="状态"
-                select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                margin="dense"
-                SelectProps={{
-                  native: true,
-                  children: [
-                    <option value="">全部</option>,
-                    <option value="1">已上架</option>,
-                    <option value="0">已下架</option>,
-                  ],
-                }}
-              />
-            </Box>
-            <Button variant="contained" onClick={handleSearch}>
-              搜索
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => {
-                setKeyword("");
-                setStatus("");
-                setPage(0);
-                send();
-              }}
-            >
-              重置
-            </Button>
-          </Box>
-
-          {/* 表格 */}
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ bgcolor: "#F8FAFC" }}>
-                  <TableCell>ID</TableCell>
-                  <TableCell>商品名称</TableCell>
-                  <TableCell>分类</TableCell>
-                  <TableCell align="right">价格</TableCell>
-                  <TableCell align="right">库存</TableCell>
-                  <TableCell align="right">销量</TableCell>
-                  <TableCell>状态</TableCell>
-                  <TableCell align="center">操作</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {data.records.map((p) => (
-                  <TableRow key={p.id} hover>
-                    <TableCell sx={{ fontFamily: "monospace", fontSize: 12 }}>
-                      {p.id}
-                    </TableCell>
-                    <TableCell>{p.name}</TableCell>
-                    <TableCell>{p.category}</TableCell>
-                    <TableCell align="right">¥{p.price}</TableCell>
-                    <TableCell align="right">{p.stock}</TableCell>
-                    <TableCell align="right">{p.sales.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        label={p.status === 1 ? "已上架" : "已下架"}
-                        color={p.status === 1 ? "success" : "default"}
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      <Tooltip title={p.status === 1 ? "下架" : "上架"}>
-                        <IconButton size="small" onClick={() => handleStatus(p)}>
-                          {p.status === 1 ? (
-                            <span style={{ fontSize: 16 }}>⏸️</span>
-                          ) : (
-                            <span style={{ fontSize: 16 }}>▶️</span>
-                          )}
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="删除">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => setConfirmId(p.id)}
-                        >
-                          <span style={{ fontSize: 16 }}>🗑️</span>
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!loading && data.records.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 6, color: "text.disabled" }}>
-                      暂无数据
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          <TablePagination
-            component="div"
-            count={data.total}
-            page={page}
-            onPageChange={(_, p) => setPage(p)}
-            rowsPerPage={pageSize}
-            onRowsPerPageChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setPage(0);
-            }}
-            labelRowsPerPage="每页"
-            labelDisplayedRows={({ from, to, count }) => `${from}-${to} / 共 ${count}`}
-          />
-        </CardContent>
-      </Card>
+      <ProTable
+        columns={columns}
+        data={data.records}
+        loading={loading}
+        total={data.total}
+        page={page}
+        pageSize={pageSize}
+        rowKey="productId"
+        onSearch={handleSearch}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+        toolbar={
+          <Button variant="outlined" onClick={() => send()}>
+            刷新
+          </Button>
+        }
+      />
 
       <Snackbar
         open={toast.open}
